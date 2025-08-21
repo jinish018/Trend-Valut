@@ -293,7 +293,7 @@ const Portfolio = () => {
                     <thead className="table-dark">
                       <tr>
                         <th className="border-0">Asset</th>
-                        <th className="border-0 text-end">Holdings</th>
+                        <th className="border-0 text-end">Quantity</th>
                         <th className="border-0 text-end">Avg. Buy Price</th>
                         <th className="border-0 text-end">Current Price</th>
                         <th className="border-0 text-end d-none d-lg-table-cell">Market Value</th>

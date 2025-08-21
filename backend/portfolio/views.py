@@ -215,10 +215,14 @@ def get_portfolio_performance(request):
         return Response({'error': 'Unable to fetch portfolio performance'}, 
                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 def update_portfolio_prices(portfolio):
     """Update current prices for all items in portfolio"""
     for item in portfolio.items.all():
-        update_item_price(item)
+        if not update_item_price(item):
+            # If price update fails, set current price to average buy price as fallback
+            item.current_price = abs(item.average_buy_price)
+            item.save(update_fields=['current_price', 'last_updated'])
 
 def update_item_price(portfolio_item):
     """Update current price for a portfolio item"""
@@ -227,7 +231,13 @@ def update_item_price(portfolio_item):
         if coin_data and coin_data.get('market_data'):
             current_price = coin_data['market_data'].get('current_price', {}).get('usd', 0)
             if current_price:
-                portfolio_item.current_price = Decimal(str(current_price))
+                # Ensure price is positive
+                current_price = abs(Decimal(str(current_price)))
+                portfolio_item.current_price = current_price
                 portfolio_item.save(update_fields=['current_price', 'last_updated'])
+                return True
+        logger.warning(f"Failed to update price for {portfolio_item.coin_id}")
+        return False
     except Exception as e:
         logger.error(f"Error updating price for {portfolio_item.coin_id}: {str(e)}")
+        return False
