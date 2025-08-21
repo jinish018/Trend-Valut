@@ -20,9 +20,11 @@ const Portfolio = () => {
     buy_price: '',
     transaction_date: new Date().toISOString().split('T')[0],
     exchange: '',
-    fee: '0',
     notes: ''
   });
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editItem, setEditItem] = useState({ id: null, quantity: '', average_buy_price: '', notes: '' });
+  const [editItemLoading, setEditItemLoading] = useState(false);
 
   useEffect(() => {
     fetchPortfolio();
@@ -55,18 +57,18 @@ const Portfolio = () => {
     setAddItemLoading(true);
 
     try {
-      const formattedItem = {
-        ...newItem,
+      const payload = {
+        coin_id: newItem.coin_id,
+        coin_name: newItem.coin_name,
+        coin_symbol: newItem.coin_symbol,
         quantity: parseFloat(newItem.quantity),
         buy_price: parseFloat(newItem.buy_price),
-        fee: parseFloat(newItem.fee || 0),
-        transaction_date: new Date(newItem.transaction_date).toISOString()
+        transaction_date: new Date(newItem.transaction_date).toISOString(),
+        exchange: newItem.exchange,
+        notes: newItem.notes
       };
-      await axios.post('/api/portfolio/add/', {
-        ...newItem,
-        transaction_date: new Date(newItem.transaction_date).toISOString()
-      });
-      
+      await axios.post('/api/portfolio/add/', payload);
+
       toast.success('Item added to portfolio successfully!');
       setShowAddModal(false);
       setNewItem({
@@ -77,10 +79,9 @@ const Portfolio = () => {
         buy_price: '',
         transaction_date: new Date().toISOString().split('T')[0],
         exchange: '',
-        fee: '0',
         notes: ''
       });
-      
+
       await fetchPortfolio();
       await fetchPerformance();
     } catch (error) {
@@ -146,15 +147,15 @@ const Portfolio = () => {
               </p>
             </div>
             <div className="d-flex gap-2 mt-3 mt-md-0">
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 onClick={() => setShowAddModal(true)}
               >
                 <i className="fas fa-plus me-2"></i>
                 Add Holding
               </Button>
-              <Button 
-                variant="outline-primary" 
+              <Button
+                variant="outline-primary"
                 onClick={() => {
                   fetchPortfolio();
                   fetchPerformance();
@@ -200,15 +201,18 @@ const Portfolio = () => {
                   </Col>
                   <Col md={3} className="mb-3 mb-md-0">
                     <div className="h3 mb-1">
-                      <span className={portfolio.profit_loss >= 0 ? 'text-success' : 'text-danger'}>
+                      <Badge
+                        bg={portfolio.profit_loss >= 0 ? 'success' : 'danger'}
+                        className="fs-4"
+                      >
                         {formatPrice(portfolio.profit_loss || 0)}
-                      </span>
+                      </Badge>
                     </div>
                     <small className="text-white-50">Profit/Loss</small>
                   </Col>
                   <Col md={3}>
                     <div className="h3 mb-1">
-                      <Badge 
+                      <Badge
                         bg={portfolio.profit_loss_percentage >= 0 ? 'success' : 'danger'}
                         className="fs-4"
                       >
@@ -248,8 +252,8 @@ const Portfolio = () => {
                         <small className="text-muted">{asset.percentage.toFixed(1)}%</small>
                       </div>
                     </div>
-                    <ProgressBar 
-                      now={asset.percentage} 
+                    <ProgressBar
+                      now={asset.percentage}
                       variant={index % 2 === 0 ? 'primary' : 'success'}
                       style={{ height: '8px' }}
                     />
@@ -279,8 +283,8 @@ const Portfolio = () => {
                   <i className="fas fa-briefcase fa-3x text-muted mb-3"></i>
                   <h5 className="text-muted">Your portfolio is empty</h5>
                   <p className="text-muted">Start building your crypto portfolio by adding your first holding.</p>
-                  <Button 
-                    variant="primary" 
+                  <Button
+                    variant="primary"
                     onClick={() => setShowAddModal(true)}
                   >
                     <i className="fas fa-plus me-2"></i>
@@ -293,7 +297,7 @@ const Portfolio = () => {
                     <thead className="table-dark">
                       <tr>
                         <th className="border-0">Asset</th>
-                        <th className="border-0 text-end">Quantity</th>
+                        <th className="border-0 text-end">Holdings</th>
                         <th className="border-0 text-end">Avg. Buy Price</th>
                         <th className="border-0 text-end">Current Price</th>
                         <th className="border-0 text-end d-none d-lg-table-cell">Market Value</th>
@@ -336,7 +340,7 @@ const Portfolio = () => {
                             <div className={`fw-bold ${item.profit_loss >= 0 ? 'text-success' : 'text-danger'}`}>
                               {formatPrice(item.profit_loss)}
                             </div>
-                            <Badge 
+                            <Badge
                               bg={item.profit_loss_percentage >= 0 ? 'success' : 'danger'}
                               className="fs-6"
                             >
@@ -353,6 +357,21 @@ const Portfolio = () => {
                               >
                                 <i className="fas fa-external-link-alt"></i>
                               </Button> */}
+                              <Button
+                                variant="outline-secondary"
+                                size="sm"
+                                onClick={() => {
+                                  setEditItem({
+                                    id: item.id,
+                                    quantity: item.quantity,
+                                    average_buy_price: item.average_buy_price,
+                                    notes: item.notes || ''
+                                  });
+                                  setShowEditModal(true);
+                                }}
+                              >
+                                Edit
+                              </Button>
                               <Button
                                 variant="outline-danger"
                                 size="sm"
@@ -391,7 +410,7 @@ const Portfolio = () => {
                   <Form.Control
                     type="text"
                     value={newItem.coin_id}
-                    onChange={(e) => setNewItem({...newItem, coin_id: e.target.value})}
+                    onChange={(e) => setNewItem({ ...newItem, coin_id: e.target.value })}
                     placeholder="e.g., bitcoin"
                     required
                   />
@@ -406,7 +425,7 @@ const Portfolio = () => {
                   <Form.Control
                     type="text"
                     value={newItem.coin_name}
-                    onChange={(e) => setNewItem({...newItem, coin_name: e.target.value})}
+                    onChange={(e) => setNewItem({ ...newItem, coin_name: e.target.value })}
                     placeholder="e.g., Bitcoin"
                     required
                   />
@@ -421,7 +440,7 @@ const Portfolio = () => {
                   <Form.Control
                     type="text"
                     value={newItem.coin_symbol}
-                    onChange={(e) => setNewItem({...newItem, coin_symbol: e.target.value})}
+                    onChange={(e) => setNewItem({ ...newItem, coin_symbol: e.target.value })}
                     placeholder="e.g., BTC"
                     required
                   />
@@ -434,7 +453,7 @@ const Portfolio = () => {
                     type="number"
                     step="any"
                     value={newItem.quantity}
-                    onChange={(e) => setNewItem({...newItem, quantity: e.target.value})}
+                    onChange={(e) => setNewItem({ ...newItem, quantity: e.target.value })}
                     placeholder="0.00000000"
                     required
                   />
@@ -447,7 +466,7 @@ const Portfolio = () => {
                     type="number"
                     step="any"
                     value={newItem.buy_price}
-                    onChange={(e) => setNewItem({...newItem, buy_price: e.target.value})}
+                    onChange={(e) => setNewItem({ ...newItem, buy_price: e.target.value })}
                     placeholder="0.00"
                     required
                   />
@@ -462,7 +481,7 @@ const Portfolio = () => {
                   <Form.Control
                     type="date"
                     value={newItem.transaction_date}
-                    onChange={(e) => setNewItem({...newItem, transaction_date: e.target.value})}
+                    onChange={(e) => setNewItem({ ...newItem, transaction_date: e.target.value })}
                     required
                   />
                 </Form.Group>
@@ -473,7 +492,7 @@ const Portfolio = () => {
                   <Form.Control
                     type="text"
                     value={newItem.exchange}
-                    onChange={(e) => setNewItem({...newItem, exchange: e.target.value})}
+                    onChange={(e) => setNewItem({ ...newItem, exchange: e.target.value })}
                     placeholder="e.g., Binance, Coinbase"
                   />
                 </Form.Group>
@@ -481,25 +500,13 @@ const Portfolio = () => {
             </Row>
 
             <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Fee (USD)</Form.Label>
-                  <Form.Control
-                    type="number"
-                    step="any"
-                    value={newItem.fee}
-                    onChange={(e) => setNewItem({...newItem, fee: e.target.value})}
-                    placeholder="0.00"
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
+              <Col md={12}>
                 <Form.Group className="mb-3">
                   <Form.Label>Notes</Form.Label>
                   <Form.Control
                     type="text"
                     value={newItem.notes}
-                    onChange={(e) => setNewItem({...newItem, notes: e.target.value})}
+                    onChange={(e) => setNewItem({ ...newItem, notes: e.target.value })}
                     placeholder="Optional notes"
                   />
                 </Form.Group>
@@ -510,8 +517,8 @@ const Portfolio = () => {
             <Button variant="secondary" onClick={() => setShowAddModal(false)}>
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               variant="primary"
               disabled={addItemLoading}
             >
@@ -526,6 +533,80 @@ const Portfolio = () => {
                   Add Holding
                 </>
               )}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
+      {/* Edit Item Modal */}
+      <Modal show={showEditModal} onHide={() => setShowEditModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <i className="fas fa-edit me-2"></i>
+            Edit Holding
+          </Modal.Title>
+        </Modal.Header>
+        <Form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!editItem.id) return;
+            setEditItemLoading(true);
+            try {
+              const payload = {
+                quantity: parseFloat(editItem.quantity),
+                average_buy_price: parseFloat(editItem.average_buy_price),
+                notes: editItem.notes || ''
+              };
+              await axios.put(`/api/portfolio/item/${editItem.id}/update/`, payload);
+              toast.success('Holding updated');
+              setShowEditModal(false);
+              await fetchPortfolio();
+              await fetchPerformance();
+            } catch (error) {
+              console.error('Error updating item:', error);
+              toast.error(error.response?.data?.error || 'Failed to update holding');
+            } finally {
+              setEditItemLoading(false);
+            }
+          }}
+        >
+          <Modal.Body>
+            <Form.Group className="mb-3">
+              <Form.Label>Quantity</Form.Label>
+              <Form.Control
+                type="number"
+                step="any"
+                value={editItem.quantity}
+                onChange={(e) => setEditItem({ ...editItem, quantity: e.target.value })}
+                required
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Average Buy Price (USD)</Form.Label>
+              <Form.Control
+                type="number"
+                step="any"
+                value={editItem.average_buy_price}
+                onChange={(e) => setEditItem({ ...editItem, average_buy_price: e.target.value })}
+                required
+              />
+            </Form.Group>
+            <Form.Group>
+              <Form.Label>Notes</Form.Label>
+              <Form.Control
+                type="text"
+                value={editItem.notes}
+                onChange={(e) => setEditItem({ ...editItem, notes: e.target.value })}
+                placeholder="Optional notes"
+              />
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowEditModal(false)} disabled={editItemLoading}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" disabled={editItemLoading}>
+              {editItemLoading ? 'Saving...' : 'Save Changes'}
             </Button>
           </Modal.Footer>
         </Form>

@@ -16,13 +16,30 @@ axios.interceptors.request.use(
   }
 );
 
+// Helper: detect auth endpoints
+const isAuthEndpoint = (url = '') => {
+  return [
+    '/api/auth/login/',
+    '/api/auth/register/',
+    '/api/auth/token/refresh/',
+    '/api/auth/logout/'
+  ].some(path => url.includes(path));
+};
+
 // Set up response interceptor to handle token refresh
 axios.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config || {};
+    const status = error.response?.status;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // If it's an auth endpoint error or we're already on the login page, don't attempt refresh/redirect.
+    const onLoginPage = typeof window !== 'undefined' && window.location.pathname.startsWith('/login');
+    if (isAuthEndpoint(originalRequest.url) || onLoginPage) {
+      return Promise.reject(error);
+    }
+
+    if (status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       const refreshToken = localStorage.getItem('refresh_token');
@@ -31,19 +48,24 @@ axios.interceptors.response.use(
           const response = await axios.post('/api/auth/token/refresh/', {
             refresh: refreshToken
           });
-          
+
           const newToken = response.data.access;
           localStorage.setItem('access_token', newToken);
+          originalRequest.headers = originalRequest.headers || {};
           originalRequest.headers.Authorization = `Bearer ${newToken}`;
-          
+
           return axios(originalRequest);
         } catch (refreshError) {
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
-          window.location.href = '/login';
+          if (!onLoginPage) {
+            window.location.href = '/login';
+          }
         }
       } else {
-        window.location.href = '/login';
+        if (!onLoginPage) {
+          window.location.href = '/login';
+        }
       }
     }
 
@@ -73,7 +95,7 @@ export const AuthProvider = ({ children }) => {
   const initializeAuth = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      
+
       if (token) {
         await fetchUserProfile();
       }
@@ -108,22 +130,30 @@ export const AuthProvider = ({ children }) => {
         email,
         password
       });
-      
+
       const { user, tokens } = response.data;
       localStorage.setItem('access_token', tokens.access);
       localStorage.setItem('refresh_token', tokens.refresh);
       setUser(user);
-      
+
       toast.success('Login successful!');
       return { success: true };
     } catch (error) {
       console.error('Login error:', error);
-      const errorMessage = error.response?.data?.non_field_errors?.[0] || 
-                          error.response?.data?.error || 
-                          'Login failed';
+      const status = error.response?.status;
+      // Prefer backend message but fall back to a friendly message for auth errors
+      let errorMessage = error.response?.data?.non_field_errors?.[0]
+        || error.response?.data?.detail
+        || error.response?.data?.error;
+      if (!errorMessage && (status === 400 || status === 401)) {
+        errorMessage = 'Incorrect email or password';
+      }
+      if (!errorMessage) errorMessage = 'Login failed';
+
       toast.error(errorMessage);
-      return { 
-        success: false, 
+      setUser(null);
+      return {
+        success: false,
         error: errorMessage
       };
     }
@@ -133,19 +163,19 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await axios.post('/api/auth/register/', userData);
       const { user, tokens } = response.data;
-      
+
       localStorage.setItem('access_token', tokens.access);
       localStorage.setItem('refresh_token', tokens.refresh);
       setUser(user);
-      
+
       toast.success('Registration successful! Welcome to DejaVu NFT!');
       return { success: true };
     } catch (error) {
       console.error('Registration error:', error);
       const errorMessage = error.response?.data || 'Registration failed';
       toast.error(typeof errorMessage === 'string' ? errorMessage : 'Registration failed');
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: errorMessage
       };
     }
@@ -166,7 +196,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('refresh_token');
       setUser(null);
       toast.success('Logged out successfully!');
-      
+
       // Use history API for cleaner navigation
       window.location.replace('/login');
     }

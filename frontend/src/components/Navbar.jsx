@@ -25,7 +25,7 @@ const Navbar = () => {
               <span className="text-primary">Trend</span>Vault
             </BSNavbar.Brand>
           </LinkContainer>
-          
+
           <Button
             variant="outline-light"
             className="d-lg-none"
@@ -66,16 +66,22 @@ const Navbar = () => {
                   Collections
                 </Nav.Link>
               </LinkContainer>
+              <LinkContainer to="/predictor">
+                <Nav.Link>
+                  <FontAwesomeIcon icon="chart-line" className="me-2" />
+                  Predictor
+                </Nav.Link>
+              </LinkContainer>
             </Nav>
-            
+
             <Nav>
-              <NavDropdown 
+              <NavDropdown
                 title={
                   <span>
                     <FontAwesomeIcon icon="user" className="me-2" />
                     {user?.first_name || user?.username || 'User'}
                   </span>
-                } 
+                }
                 id="user-dropdown"
                 align="end"
               >
@@ -140,7 +146,13 @@ const Navbar = () => {
                 Collections
               </Nav.Link>
             </LinkContainer>
-            
+            <LinkContainer to="/predictor" onClick={handleClose}>
+              <Nav.Link className="text-light py-3 border-bottom">
+                <FontAwesomeIcon icon="chart-line" className="me-3" />
+                Predictor
+              </Nav.Link>
+            </LinkContainer>
+
             <div className="mt-4 pt-3 border-top">
               <div className="px-3 mb-3">
                 <div className="fw-bold text-light">{user?.full_name}</div>

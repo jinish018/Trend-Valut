@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.core.cache import cache
 from .services import CoinGeckoService
+from .prediction_service import CryptoPredictionService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -163,3 +164,66 @@ def search_coins(request):
         logger.error(f"Error searching coins: {str(e)}")
         return Response({'error': 'Unable to search coins'}, 
                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def predict_crypto_price(request):
+    """Predict future crypto price"""
+    try:
+        coin_id = request.data.get('coin_id', '').lower().strip()
+        days_ahead = int(request.data.get('days_ahead', 7))
+        
+        if not coin_id:
+            return Response({'error': 'Coin ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if days_ahead < 1 or days_ahead > 30:
+            return Response({'error': 'Days ahead must be between 1 and 30'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Initialize prediction service
+        prediction_service = CryptoPredictionService()
+        
+        # Get prediction
+        prediction_result = prediction_service.predict_price(coin_id, days_ahead)
+        
+        if prediction_result is None:
+            return Response({'error': 'Unable to generate prediction. Please check the coin name and try again.'}, 
+                          status=status.HTTP_404_NOT_FOUND)
+        
+        return Response(prediction_result, status=status.HTTP_200_OK)
+        
+    except ValueError:
+        return Response({'error': 'Invalid days_ahead value'}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        logger.error(f"Error in predict_crypto_price: {str(e)}")
+        return Response({'error': 'Prediction service temporarily unavailable'}, 
+                      status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def search_coins_for_prediction(request):
+    """Search coins for prediction (simplified version)"""
+    try:
+        query = request.GET.get('q', '').strip()
+        if len(query) < 2:
+            return Response({'coins': []})
+        
+        # Use existing CoinGecko service to search
+        service = CoinGeckoService()
+        search_result = service.search_coins(query)
+        
+        # Return simplified format for prediction
+        simplified_coins = []
+        if search_result and 'coins' in search_result:
+            for coin in search_result['coins'][:10]:  # Limit to 10 results
+                simplified_coins.append({
+                    'id': coin.get('id'),
+                    'name': coin.get('name'),
+                    'symbol': coin.get('symbol', '').upper(),
+                    'image': coin.get('large', coin.get('thumb', ''))
+                })
+        
+        return Response({'coins': simplified_coins})
+        
+    except Exception as e:
+        logger.error(f"Error searching coins for prediction: {str(e)}")
+        return Response({'coins': []})

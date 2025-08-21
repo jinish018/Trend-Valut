@@ -13,28 +13,30 @@ import AllCoins from './pages/AllCoins';
 import Portfolio from './pages/Portfolio';
 import Collections from './pages/Collections';
 import CoinDetails from './pages/CoinDetails';
-import Profile from './pages/Profile'; // Add this import
+import Profile from './pages/Profile';
+import Predictor from './pages/Predictor';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import LoadingSpinner from './components/LoadingSpinner';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading, initialized } = useAuth();
-  
+
   if (loading || !initialized) {
     return <LoadingSpinner message="Loading..." />;
   }
-  
+
   return user ? children : <Navigate to="/login" replace />;
 };
 
 const PublicRoute = ({ children }) => {
   const { user, loading, initialized } = useAuth();
-  
+
   if (loading || !initialized) {
     return <LoadingSpinner message="Loading..." />;
   }
-  
+
   return user ? <Navigate to="/dashboard" replace /> : children;
 };
 
@@ -51,67 +53,94 @@ function App() {
           <Routes>
             <Route path="/login" element={
               <PublicRoute>
-                <Login />
+                <ErrorBoundary>
+                  <Login />
+                </ErrorBoundary>
               </PublicRoute>
             } />
             <Route path="/register" element={
               <PublicRoute>
-                <Register />
+                <ErrorBoundary>
+                  <Register />
+                </ErrorBoundary>
               </PublicRoute>
             } />
             <Route path="/dashboard" element={
               <ProtectedRoute>
-                <Navbar />
-                <Dashboard />
-                <Footer />
+                <ErrorBoundary>
+                  <Navbar />
+                  <Dashboard />
+                  <Footer />
+                </ErrorBoundary>
               </ProtectedRoute>
             } />
             <Route path="/highlights" element={
               <ProtectedRoute>
-                <Navbar />
-                <Highlights />
-                <Footer />
+                <ErrorBoundary>
+                  <Navbar />
+                  <Highlights />
+                  <Footer />
+                </ErrorBoundary>
               </ProtectedRoute>
             } />
             <Route path="/all" element={
               <ProtectedRoute>
-                <Navbar />
-                <AllCoins />
-                <Footer />
+                <ErrorBoundary>
+                  <Navbar />
+                  <AllCoins />
+                  <Footer />
+                </ErrorBoundary>
               </ProtectedRoute>
             } />
             <Route path="/portfolio" element={
               <ProtectedRoute>
-                <Navbar />
-                <Portfolio />
-                <Footer />
+                <ErrorBoundary>
+                  <Navbar />
+                  <Portfolio />
+                  <Footer />
+                </ErrorBoundary>
               </ProtectedRoute>
             } />
             <Route path="/collections" element={
               <ProtectedRoute>
-                <Navbar />
-                <Collections />
-                <Footer />
+                <ErrorBoundary>
+                  <Navbar />
+                  <Collections />
+                  <Footer />
+                </ErrorBoundary>
+              </ProtectedRoute>
+            } />
+            <Route path="/predictor" element={
+              <ProtectedRoute>
+                <ErrorBoundary>
+                  <Navbar />
+                  <Predictor />
+                  <Footer />
+                </ErrorBoundary>
               </ProtectedRoute>
             } />
             <Route path="/profile" element={
               <ProtectedRoute>
-                <Navbar />
-                <Profile />
-                <Footer />
+                <ErrorBoundary>
+                  <Navbar />
+                  <Profile />
+                  <Footer />
+                </ErrorBoundary>
               </ProtectedRoute>
             } />
             <Route path="/coin/:coinId" element={
               <ProtectedRoute>
-                <Navbar />
-                <CoinDetails />
-                <Footer />
+                <ErrorBoundary>
+                  <Navbar />
+                  <CoinDetails />
+                  <Footer />
+                </ErrorBoundary>
               </ProtectedRoute>
             } />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
-          <ToastContainer 
-            position="top-right" 
+          <ToastContainer
+            position="top-right"
             autoClose={3000}
             hideProgressBar={false}
             newestOnTop={false}

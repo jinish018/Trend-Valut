@@ -8,4 +8,7 @@ urlpatterns = [
     path('coins/<str:coin_id>/history/', views.get_coin_history, name='coin_history'),
     path('global-stats/', views.get_global_stats, name='global_stats'),
     path('search/', views.search_coins, name='search_coins'),
+    path('coin/<str:coin_id>/', views.get_coin_details, name='get_coin_details'),
+    path('predict/', views.predict_crypto_price, name='predict_crypto_price'),
+    path('predict/search/', views.search_coins_for_prediction, name='search_coins_for_prediction'),
 ]

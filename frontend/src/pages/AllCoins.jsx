@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Table, Badge, Button, Form, InputGroup, Alert, Pagination } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
+import { Container, Row, Col, Card, Table, Badge, Button, Form, InputGroup, Alert, Pagination, Modal } from 'react-bootstrap';
+import { Link, useNavigate } from 'react-router-dom';
 import { FaChevronLeft, FaChevronRight, FaSearch, FaTimes, FaSync } from 'react-icons/fa';
 import axios from 'axios';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { toast } from 'react-toastify';
 
 const AllCoins = () => {
+  const navigate = useNavigate();
   const [coins, setCoins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -13,6 +15,16 @@ const AllCoins = () => {
   const [searchTimeout, setSearchTimeout] = useState(null);
   const [error, setError] = useState('');
   const [totalPages, setTotalPages] = useState(1);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addItemLoading, setAddItemLoading] = useState(false);
+  const [selectedCoin, setSelectedCoin] = useState(null);
+  const [addForm, setAddForm] = useState({
+    quantity: '',
+    buy_price: '',
+    transaction_date: new Date().toISOString().split('T')[0],
+    exchange: '',
+    notes: ''
+  });
 
   useEffect(() => {
     fetchCoins();
@@ -43,7 +55,7 @@ const AllCoins = () => {
     try {
       setLoading(true);
       setError('');
-      
+
       const params = {
         page: isSearch ? 1 : page,
         per_page: 50
@@ -54,7 +66,7 @@ const AllCoins = () => {
       }
 
       const response = await axios.get('/api/dashboard/coins/', { params });
-      
+
       if (response.data.coins) {
         setCoins(response.data.coins);
         setTotalPages(searchTerm ? 5 : 50);
@@ -193,8 +205,8 @@ const AllCoins = () => {
               </p>
             </div>
             <div className="d-flex gap-2 mt-3 mt-md-0">
-              <Button 
-                variant="outline-primary" 
+              <Button
+                variant="outline-primary"
                 onClick={() => fetchCoins()}
                 disabled={loading}
                 size="sm"
@@ -225,8 +237,8 @@ const AllCoins = () => {
                   disabled={loading}
                 />
                 {searchTerm && (
-                  <Button 
-                    variant="outline-secondary" 
+                  <Button
+                    variant="outline-secondary"
                     onClick={clearSearch}
                     disabled={loading}
                   >
@@ -282,9 +294,9 @@ const AllCoins = () => {
         <Alert variant="danger" className="mb-4">
           <i className="fas fa-exclamation-triangle me-2"></i>
           {error}
-          <Button 
-            variant="outline-danger" 
-            size="sm" 
+          <Button
+            variant="outline-danger"
+            size="sm"
             className="ms-3"
             onClick={() => fetchCoins()}
           >
@@ -304,7 +316,7 @@ const AllCoins = () => {
                   <FaSearch size="3rem" className="text-muted mb-3" />
                   <h5 className="text-muted">No cryptocurrencies found</h5>
                   <p className="text-muted">
-                    {searchTerm 
+                    {searchTerm
                       ? `No results found for "${searchTerm}". Try a different search term.`
                       : 'Unable to load cryptocurrency data.'
                     }
@@ -348,8 +360,8 @@ const AllCoins = () => {
                           </td>
                           <td>
                             <div className="d-flex align-items-center">
-                              <img 
-                                src={coin.image} 
+                              <img
+                                src={coin.image}
                                 alt={coin.name}
                                 className="coin-image me-3"
                                 style={{ width: '32px', height: '32px' }}
@@ -370,7 +382,7 @@ const AllCoins = () => {
                             </div>
                           </td>
                           <td className="text-end d-none d-md-table-cell">
-                            <Badge 
+                            <Badge
                               bg={coin.price_change_percentage_24h >= 0 ? 'success' : 'danger'}
                               className="fs-6"
                             >
@@ -378,7 +390,7 @@ const AllCoins = () => {
                             </Badge>
                           </td>
                           <td className="text-end d-none d-lg-table-cell">
-                            <Badge 
+                            <Badge
                               bg={coin.price_change_percentage_7d_in_currency >= 0 ? 'success' : 'danger'}
                               className="fs-6"
                             >
@@ -396,16 +408,35 @@ const AllCoins = () => {
                             </div>
                           </td>
                           <td className="text-center">
-                            <Button 
-                              as={Link} 
-                              to={`/coin/${coin.id}`}
-                              variant="outline-primary" 
-                              size="sm"
-                            >
-                              <i className="fas fa-external-link-alt me-1 d-none d-sm-inline"></i>
-                              <span className="d-none d-sm-inline">View</span>
-                              <i className="fas fa-eye d-sm-none"></i>
-                            </Button>
+                            <div className="d-flex justify-content-center gap-2">
+                              <Button
+                                as={Link}
+                                to={`/coin/${coin.id}`}
+                                variant="outline-primary"
+                                size="sm"
+                              >
+                                <i className="fas fa-external-link-alt me-1 d-none d-sm-inline"></i>
+                                <span className="d-none d-sm-inline">View</span>
+                                <i className="fas fa-eye d-sm-none"></i>
+                              </Button>
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedCoin(coin);
+                                  setAddForm({
+                                    quantity: '',
+                                    buy_price: coin.current_price ?? '',
+                                    transaction_date: new Date().toISOString().split('T')[0],
+                                    exchange: '',
+                                    notes: ''
+                                  });
+                                  setShowAddModal(true);
+                                }}
+                              >
+                                Add to Portfolio
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -426,6 +457,109 @@ const AllCoins = () => {
           )}
         </>
       )}
+      {/* Add to Portfolio Modal */}
+      <Modal show={showAddModal} onHide={() => setShowAddModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <i className="fas fa-plus me-2"></i>
+            Add to Portfolio
+          </Modal.Title>
+        </Modal.Header>
+        <Form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!selectedCoin) return;
+            setAddItemLoading(true);
+            try {
+              const payload = {
+                coin_id: selectedCoin.id,
+                coin_name: selectedCoin.name,
+                coin_symbol: selectedCoin.symbol,
+                quantity: parseFloat(addForm.quantity),
+                buy_price: parseFloat(addForm.buy_price),
+                transaction_date: new Date(addForm.transaction_date).toISOString(),
+                exchange: addForm.exchange,
+                notes: addForm.notes
+              };
+              await axios.post('/api/portfolio/add/', payload);
+              toast.success('Added to portfolio');
+              setShowAddModal(false);
+              navigate('/portfolio', { replace: true });
+            } catch (err) {
+              console.error('Add to portfolio error:', err);
+              toast.error(err.response?.data?.error || 'Failed to add to portfolio');
+            } finally {
+              setAddItemLoading(false);
+            }
+          }}
+        >
+          <Modal.Body>
+            <div className="mb-3">
+              <div className="fw-bold">
+                {selectedCoin ? `${selectedCoin.name} (${selectedCoin.symbol?.toUpperCase()})` : ''}
+              </div>
+              <small className="text-muted">
+                Current Price: {selectedCoin ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 6 }).format(selectedCoin.current_price || 0) : ''}
+              </small>
+            </div>
+            <Form.Group className="mb-3">
+              <Form.Label>Quantity *</Form.Label>
+              <Form.Control
+                type="number"
+                step="any"
+                value={addForm.quantity}
+                onChange={(e) => setAddForm({ ...addForm, quantity: e.target.value })}
+                placeholder="0.00000000"
+                required
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Buy Price (USD) *</Form.Label>
+              <Form.Control
+                type="number"
+                step="any"
+                value={addForm.buy_price}
+                onChange={(e) => setAddForm({ ...addForm, buy_price: e.target.value })}
+                placeholder="0.00"
+                required
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Transaction Date *</Form.Label>
+              <Form.Control
+                type="date"
+                value={addForm.transaction_date}
+                onChange={(e) => setAddForm({ ...addForm, transaction_date: e.target.value })}
+                required
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Exchange</Form.Label>
+              <Form.Control
+                type="text"
+                value={addForm.exchange}
+                onChange={(e) => setAddForm({ ...addForm, exchange: e.target.value })}
+                placeholder="e.g., Binance, Coinbase"
+              />
+            </Form.Group>
+            <Form.Group>
+              <Form.Label>Notes</Form.Label>
+              <Form.Control
+                type="text"
+                value={addForm.notes}
+                onChange={(e) => setAddForm({ ...addForm, notes: e.target.value })}
+                placeholder="Optional notes"
+              />
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowAddModal(false)} disabled={addItemLoading}>Cancel</Button>
+            <Button type="submit" variant="primary" disabled={addItemLoading}>
+              {addItemLoading ? 'Adding...' : 'Add Holding'}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
     </Container>
   );
 };
